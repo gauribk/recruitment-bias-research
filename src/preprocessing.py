@@ -123,3 +123,21 @@ if __name__ == "__main__":
 
     X_train_resume.to_csv("data/processed/X_train_resume_tfidf.csv", index=False)
     joblib.dump(resume_vectorizer, "data/processed/resume_tfidf_vectorizer.joblib")
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, roc_auc_score
+
+if __name__ == "__main__":
+    # ... keep everything above, then add:
+
+    y_train = train_df["Best Match"].reset_index(drop=True)
+    y_val = val_df["Best Match"].reset_index(drop=True)
+
+    quick_model = LogisticRegression(max_iter=1000, random_state=42)
+    quick_model.fit(X_train_resume, y_train)
+
+    val_preds = quick_model.predict(X_val_resume)
+    val_probs = quick_model.predict_proba(X_val_resume)[:, 1]
+
+    print("Resume-text-only accuracy:", accuracy_score(y_val, val_preds))
+    print("Resume-text-only ROC-AUC:", roc_auc_score(y_val, val_probs))
