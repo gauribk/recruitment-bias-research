@@ -43,3 +43,49 @@ if __name__ == "__main__":
     train_df.to_csv("data/processed/train.csv", index=False)
     val_df.to_csv("data/processed/val.csv", index=False)
     test_df.to_csv("data/processed/test.csv", index=False)
+
+from sklearn.preprocessing import OneHotEncoder
+import joblib
+
+CATEGORICAL_COLS_FULL = ["Gender", "Race", "Ethnicity", "Job Roles"]
+CATEGORICAL_COLS_NO_SENSITIVE = ["Job Roles"]  # Experiment B keeps this, drops Gender/Race/Ethnicity
+NUMERIC_COLS = ["Age"]
+
+def encode_categoricals(train_df, val_df, test_df, categorical_cols):
+    encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+    encoder.fit(train_df[categorical_cols])
+
+    def transform(df):
+        encoded = encoder.transform(df[categorical_cols])
+        encoded_df = pd.DataFrame(
+            encoded,
+            columns=encoder.get_feature_names_out(categorical_cols),
+            index=df.index
+        )
+        return pd.concat([df[NUMERIC_COLS].reset_index(drop=True),
+                           encoded_df.reset_index(drop=True)], axis=1)
+
+    return transform(train_df), transform(val_df), transform(test_df), encoder
+
+
+if __name__ == "__main__":
+    train_df, val_df, test_df = load_and_split("data/raw/job_applicant_dataset.csv")
+
+    # Experiment A: WITH sensitive attributes
+    X_train_A, X_val_A, X_test_A, encoder_A = encode_categoricals(
+        train_df, val_df, test_df, CATEGORICAL_COLS_FULL
+    )
+
+    # Experiment B: WITHOUT sensitive attributes
+    X_train_B, X_val_B, X_test_B, encoder_B = encode_categoricals(
+        train_df, val_df, test_df, CATEGORICAL_COLS_NO_SENSITIVE
+    )
+
+    print("Experiment A (with sensitive attrs) shape:", X_train_A.shape)
+    print("Experiment B (without sensitive attrs) shape:", X_train_B.shape)
+
+    X_train_A.to_csv("data/processed/X_train_experimentA.csv", index=False)
+    X_train_B.to_csv("data/processed/X_train_experimentB.csv", index=False)
+
+    joblib.dump(encoder_A, "data/processed/encoder_experimentA.joblib")
+    joblib.dump(encoder_B, "data/processed/encoder_experimentB.joblib")
