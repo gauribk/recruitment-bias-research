@@ -89,3 +89,37 @@ if __name__ == "__main__":
 
     joblib.dump(encoder_A, "data/processed/encoder_experimentA.joblib")
     joblib.dump(encoder_B, "data/processed/encoder_experimentB.joblib")
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+def vectorize_resumes(train_df, val_df, test_df, max_features=300):
+    vectorizer = TfidfVectorizer(
+        max_features=max_features,
+        stop_words="english",
+        lowercase=True
+    )
+    vectorizer.fit(train_df["Resume"])
+
+    def transform(df):
+        matrix = vectorizer.transform(df["Resume"]).toarray()
+        return pd.DataFrame(
+            matrix,
+            columns=[f"resume_tfidf_{w}" for w in vectorizer.get_feature_names_out()],
+            index=df.index
+        ).reset_index(drop=True)
+
+    return transform(train_df), transform(val_df), transform(test_df), vectorizer
+
+
+if __name__ == "__main__":
+    # ... (keep everything from before, then add:)
+
+    X_train_resume, X_val_resume, X_test_resume, resume_vectorizer = vectorize_resumes(
+        train_df, val_df, test_df
+    )
+
+    print("Resume TF-IDF train shape:", X_train_resume.shape)
+    print("Sample resume feature names:", list(X_train_resume.columns[:10]))
+
+    X_train_resume.to_csv("data/processed/X_train_resume_tfidf.csv", index=False)
+    joblib.dump(resume_vectorizer, "data/processed/resume_tfidf_vectorizer.joblib")
